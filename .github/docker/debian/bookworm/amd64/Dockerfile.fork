@@ -110,12 +110,18 @@ RUN apt-get --quiet update && \
     sed -n '/^Build-Depends:/,/^[A-Z]/p' debian/control \
       | grep -v '^[A-Z]' \
       | tr ',' '\n' \
-      | sed 's/([^)]*)//g; s/|.*//; s/^[ \t]*//; s/[ \t]*$//' \
+      | sed 's/([^)]*)//g; s/^[ \t]*//; s/[ \t]*$//' \
       | grep -v '^$' \
-      | while read pkg; do \
-          echo "Installing: $pkg" && \
-          DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install "$pkg" 2>/dev/null \
-            || echo "SKIPPED (not available): $pkg" ; \
+      | while IFS='|' read -ra alts; do \
+          installed=false; \
+          for alt in "${alts[@]}"; do \
+            pkg=$(echo "$alt" | sed 's/^[ \t]*//; s/[ \t]*$//'); \
+            [ -z "$pkg" ] && continue; \
+            echo "Trying: $pkg" && \
+            DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install "$pkg" 2>/dev/null \
+              && installed=true && break; \
+          done; \
+          [ "$installed" = false ] && echo "SKIPPED (no alternative available): ${alts[*]}"; \
         done && \
     apt-get --yes --fix-broken install
 
