@@ -63,6 +63,16 @@ RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
     && ldconfig \
     && rm -rf /tmp/spandsp
 
+# ── Build libilbc from source ────────────────────────────────────────────────
+RUN git clone --depth 1 https://github.com/TimothyGu/libilbc.git /tmp/libilbc \
+    && cd /tmp/libilbc \
+    && git submodule update --init \
+    && cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON . \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/libilbc
+
 RUN echo "export CODENAME=${CODENAME}" | tee ~/.env && \
     chmod +x ~/.env
 
@@ -80,8 +90,7 @@ RUN sed -i '/^Module: applications\/mod_signalwire$/,/^$/d' debian/control-modul
     sed -i '/^Module: codecs\/mod_bv$/,/^$/d' debian/control-modules && \
     sed -i '/^Module: codecs\/mod_silk$/,/^$/d' debian/control-modules && \
     sed -i '/^Module: languages\/mod_v8$/,/^$/d' debian/control-modules && \
-    sed -i '/^Module: endpoints\/mod_verto$/,/^$/d' debian/control-modules && \
-    sed -i '/^Module: codecs\/mod_ilbc$/,/^$/d' debian/control-modules
+    sed -i '/^Module: endpoints\/mod_verto$/,/^$/d' debian/control-modules
 
 RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
 RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
@@ -91,8 +100,7 @@ RUN sed -i '/languages\/mod_v8/d' debian/modules_.conf && \
     sed -i '/applications\/mod_signalwire/d' debian/modules_.conf && \
     sed -i '/codecs\/mod_bv/d' debian/modules_.conf && \
     sed -i '/codecs\/mod_silk/d' debian/modules_.conf && \
-    sed -i '/endpoints\/mod_verto/d' debian/modules_.conf && \
-    sed -i '/codecs\/mod_ilbc/d' debian/modules_.conf
+    sed -i '/endpoints\/mod_verto/d' debian/modules_.conf
 
 # Strip libtpl-dev from Build-Depends (optional at configure time, not in Debian)
 # and strip libldns-fs-dev alternative (libldns-dev in Debian will satisfy it)
@@ -104,7 +112,7 @@ RUN sed -i 's/ libtpl-dev (>= 1.5),//' debian/control && \
 # Also create dummy debs for sofia-sip/spandsp (built from source above).
 RUN apt-get --quiet update && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq install equivs && \
-    for pkg in libsofia-sip-ua-dev libsofia-sip-ua0 libspandsp3-dev; do \
+    for pkg in libsofia-sip-ua-dev libsofia-sip-ua0 libspandsp3-dev libilbc-dev; do \
       printf 'Section: misc\nPriority: optional\nStandards-Version: 3.9.2\nPackage: %s\nVersion: 99.0.0\nDescription: dummy\n' "$pkg" > /tmp/${pkg}.ctl && \
       ( cd /tmp && equivs-build ${pkg}.ctl ) && \
       dpkg -i /tmp/${pkg}_99.0.0_all.deb ; \
