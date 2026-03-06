@@ -112,6 +112,7 @@ RUN apt-get --quiet update && \
       | tr ',' '\n' \
       | sed 's/([^)]*)//g; s/^[ \t]*//; s/[ \t]*$//' \
       | grep -v '^$' \
+      | grep -v '^#' \
       | while IFS='|' read -ra alts; do \
           installed=false; \
           for alt in "${alts[@]}"; do \
@@ -122,6 +123,7 @@ RUN apt-get --quiet update && \
               && installed=true && break; \
           done; \
           [ "$installed" = false ] && echo "SKIPPED (no alternative available): ${alts[*]}"; \
+          true; \
         done && \
     apt-get --yes --fix-broken install
 
