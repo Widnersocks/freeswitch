@@ -1,14 +1,11 @@
 name: Build and Distribute
 
 on:
-  pull_request:
-  push:
-    branches:
-      - master
-      - v1.10
-    paths:
-      - "**"
   workflow_dispatch:
+    inputs:
+      placeholder:
+        description: "Disabled — use build-fork.yml instead"
+        required: false
 
 concurrency:
   group: ${{ github.head_ref || github.ref }}

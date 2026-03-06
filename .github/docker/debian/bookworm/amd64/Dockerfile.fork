@@ -34,6 +34,7 @@ RUN apt-get -q update && \
         graphviz \
         libglib2.0-dev \
         libssl-dev \
+        libtiff-dev \
         libtool \
         lsb-release \
         pkg-config \
