@@ -81,14 +81,12 @@ RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER
 RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
 
 # Create dummy .debs so mk-build-deps can satisfy sofia-sip and spandsp deps
-# (we built them from source above)
+# (we already built and installed them from source above)
 RUN apt-get --quiet update && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq install equivs && \
-    for pkg in "libsofia-sip-ua-dev" "libsofia-sip-ua0" "libspandsp3-dev"; do \
-      equivs-control /tmp/${pkg} && \
-      sed -i "s/^Package:.*/Package: ${pkg}/" /tmp/${pkg} && \
-      sed -i "s/^# Version:.*/Version: 99.0.0/" /tmp/${pkg} && \
-      ( cd /tmp && equivs-build ${pkg} ) && \
+    for pkg in libsofia-sip-ua-dev libsofia-sip-ua0 libspandsp3-dev; do \
+      printf 'Section: misc\nPriority: optional\nStandards-Version: 3.9.2\nPackage: %s\nVersion: 99.0.0\nDescription: dummy\n' "$pkg" > /tmp/${pkg}.ctl && \
+      ( cd /tmp && equivs-build ${pkg}.ctl ) && \
       dpkg -i /tmp/${pkg}_99.0.0_all.deb ; \
     done && \
     mk-build-deps \
