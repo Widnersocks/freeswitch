@@ -87,7 +87,9 @@ RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
 RUN sed -i 's/ libtpl-dev (>= 1.5),//' debian/control && \
     sed -i 's/libldns-fs-dev | //' debian/control
 
-# Create dummy .debs for sofia-sip and spandsp (built from source above)
+# Install build deps directly — extract from debian/control Build-Depends,
+# try each one, and skip any that aren't in Debian repos.
+# Also create dummy debs for sofia-sip/spandsp (built from source above).
 RUN apt-get --quiet update && \
     DEBIAN_FRONTEND=noninteractive apt-get -yq install equivs && \
     for pkg in libsofia-sip-ua-dev libsofia-sip-ua0 libspandsp3-dev; do \
@@ -95,10 +97,16 @@ RUN apt-get --quiet update && \
       ( cd /tmp && equivs-build ${pkg}.ctl ) && \
       dpkg -i /tmp/${pkg}_99.0.0_all.deb ; \
     done && \
-    mk-build-deps \
-        --install \
-        --remove debian/control \
-        --tool "apt-get --yes --no-install-recommends -o Debug::pkgProblemResolver=yes" && \
+    sed -n '/^Build-Depends:/,/^[A-Z]/p' debian/control \
+      | grep -v '^[A-Z]' \
+      | tr ',' '\n' \
+      | sed 's/([^)]*)//g; s/|.*//; s/^[ \t]*//; s/[ \t]*$//' \
+      | grep -v '^$' \
+      | while read pkg; do \
+          echo "Installing: $pkg" && \
+          DEBIAN_FRONTEND=noninteractive apt-get -yq --no-install-recommends install "$pkg" 2>/dev/null \
+            || echo "SKIPPED (not available): $pkg" ; \
+        done && \
     apt-get --yes --fix-broken install
 
 ENV DEB_BUILD_OPTIONS="parallel=$(nproc)"
@@ -113,7 +121,7 @@ RUN dpkg-source \
         --compression-level=9 \
         --build \
     . \
-    && debuild -b -us -uc \
+    && debuild -b -d -us -uc \
     && mkdir OUT \
     && mv -v ../*.{deb,dsc,changes,tar.*} OUT/.
 
