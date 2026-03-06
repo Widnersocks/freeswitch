@@ -1,0 +1,75 @@
+name: Build Fork Packages
+
+on:
+  push:
+    branches:
+      - v1.10
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deb:
+    name: "Build .deb (Bookworm amd64)"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set build metadata
+        id: meta
+        run: |
+          VERSION=$(cat build/next-release.txt | tr -d '\n')
+          BUILD_NUMBER=${{ github.run_number }}
+          GIT_SHA=$(git rev-parse --short HEAD)
+          TAG="v${VERSION}-${BUILD_NUMBER}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "git_sha=${GIT_SHA}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build packages in Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: .github/docker/debian/bookworm/amd64/Dockerfile.fork
+          build-args: |
+            BUILD_NUMBER=${{ steps.meta.outputs.build_number }}
+            GIT_SHA=${{ steps.meta.outputs.git_sha }}
+          push: false
+          load: false
+          outputs: type=local,dest=./artifacts
+
+      - name: List artifacts
+        run: ls -lah ./artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: freeswitch-bookworm-amd64-debs
+          path: ./artifacts/*.deb
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "FreeSWITCH ${{ steps.meta.outputs.version }} (build ${{ steps.meta.outputs.build_number }})"
+          body: |
+            FreeSWITCH fork build from `v1.10` branch.
+
+            **Version:** ${{ steps.meta.outputs.version }}
+            **Commit:** ${{ steps.meta.outputs.git_sha }}
+            **Target:** Debian 12 (Bookworm) amd64
+
+            Install: download the `.deb` files and run `sudo dpkg -i *.deb && sudo apt-get -f install`.
+          files: ./artifacts/*.deb
+          draft: false
+          prerelease: false

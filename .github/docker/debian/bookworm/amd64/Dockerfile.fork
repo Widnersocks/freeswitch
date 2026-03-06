@@ -1,0 +1,119 @@
+ARG BUILDER_IMAGE=debian:bookworm
+
+FROM ${BUILDER_IMAGE} AS builder
+
+ARG MAINTAINER_NAME="Meucci Fork"
+ARG MAINTAINER_EMAIL="noreply@example.com"
+
+ARG BUILD_NUMBER=42
+ARG GIT_SHA=0000000000
+
+ARG DATA_DIR=/data
+ARG CODENAME=bookworm
+
+LABEL maintainer="${MAINTAINER_NAME} <${MAINTAINER_EMAIL}>"
+
+SHELL ["/bin/bash", "-c"]
+
+# Install base build tooling
+RUN apt-get -q update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -yq install \
+        apt-transport-https \
+        autoconf \
+        automake \
+        build-essential \
+        ca-certificates \
+        cmake \
+        curl \
+        debhelper \
+        devscripts \
+        dh-autoreconf \
+        dos2unix \
+        doxygen \
+        git \
+        graphviz \
+        libglib2.0-dev \
+        libssl-dev \
+        libtool \
+        lsb-release \
+        pkg-config \
+        wget
+
+RUN update-ca-certificates --fresh
+
+# ── Build sofia-sip from source ──────────────────────────────────────────────
+RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-sip.git /tmp/sofia-sip \
+    && cd /tmp/sofia-sip \
+    && ./bootstrap.sh \
+    && ./configure --prefix=/usr \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/sofia-sip
+
+# ── Build spandsp from source ────────────────────────────────────────────────
+RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
+    && cd /tmp/spandsp \
+    && ./bootstrap.sh \
+    && ./configure --prefix=/usr \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/spandsp
+
+RUN echo "export CODENAME=${CODENAME}" | tee ~/.env && \
+    chmod +x ~/.env
+
+RUN git config --global --add safe.directory '*' \
+    && git config --global user.name "${MAINTAINER_NAME}" \
+    && git config --global user.email "${MAINTAINER_EMAIL}"
+
+# Bootstrap and Build
+COPY . ${DATA_DIR}
+WORKDIR ${DATA_DIR}
+RUN echo "export VERSION=$(cat ./build/next-release.txt | tr -d '\n')" | tee -a ~/.env
+
+# Remove mod_signalwire (requires libks2 + signalwire-client-c2 from SignalWire's repo)
+RUN sed -i '/^Module: applications\/mod_signalwire$/,/^$/d' debian/control-modules
+
+RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
+RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
+
+# Create dummy .debs so mk-build-deps can satisfy sofia-sip and spandsp deps
+# (we built them from source above)
+RUN apt-get --quiet update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -yq install equivs && \
+    for pkg in "libsofia-sip-ua-dev" "libsofia-sip-ua0" "libspandsp3-dev"; do \
+      equivs-control /tmp/${pkg} && \
+      sed -i "s/^Package:.*/Package: ${pkg}/" /tmp/${pkg} && \
+      sed -i "s/^# Version:.*/Version: 99.0.0/" /tmp/${pkg} && \
+      ( cd /tmp && equivs-build ${pkg} ) && \
+      dpkg -i /tmp/${pkg}_99.0.0_all.deb ; \
+    done && \
+    mk-build-deps \
+        --install \
+        --remove debian/control \
+        --tool "apt-get --yes --no-install-recommends -o Debug::pkgProblemResolver=yes" && \
+    apt-get --yes --fix-broken install
+
+ENV DEB_BUILD_OPTIONS="parallel=$(nproc)"
+RUN . ~/.env && dch -b -M -v "${VERSION}-${BUILD_NUMBER}-${GIT_SHA}~${CODENAME}" \
+  --force-distribution -D "${CODENAME}" "Fork build, ${GIT_SHA}"
+
+RUN . ~/.env && ./debian/util.sh create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
+
+RUN dpkg-source \
+        --diff-ignore=.* \
+        --compression=xz \
+        --compression-level=9 \
+        --build \
+    . \
+    && debuild -b -us -uc \
+    && mkdir OUT \
+    && mv -v ../*.{deb,dsc,changes,tar.*} OUT/.
+
+RUN ls -lah /data/OUT
+
+# Artifacts image (mandatory part, the resulting image must have a single filesystem layer)
+FROM scratch
+COPY --from=builder /data/OUT/ /
