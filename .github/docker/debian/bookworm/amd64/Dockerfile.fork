@@ -89,10 +89,13 @@ RUN apt-get --quiet update && \
       ( cd /tmp && equivs-build ${pkg}.ctl ) && \
       dpkg -i /tmp/${pkg}_99.0.0_all.deb ; \
     done && \
+    echo "=== Build-Depends from debian/control ===" && \
+    sed -n '/^Build-Depends:/,/^[^ ]/p' debian/control | head -60 && \
+    echo "===========================================" && \
     mk-build-deps \
         --install \
         --remove debian/control \
-        --tool "apt-get --yes --no-install-recommends -o Debug::pkgProblemResolver=yes" && \
+        --tool "apt-get --yes --no-install-recommends -o Debug::pkgProblemResolver=yes" ; \
     apt-get --yes --fix-broken install
 
 ENV DEB_BUILD_OPTIONS="parallel=$(nproc)"
