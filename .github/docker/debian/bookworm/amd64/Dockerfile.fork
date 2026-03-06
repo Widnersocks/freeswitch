@@ -77,7 +77,8 @@ RUN echo "export VERSION=$(cat ./build/next-release.txt | tr -d '\n')" | tee -a 
 # Remove modules whose deps aren't in standard Debian repos
 RUN sed -i '/^Module: applications\/mod_signalwire$/,/^$/d' debian/control-modules && \
     sed -i '/^Module: codecs\/mod_bv$/,/^$/d' debian/control-modules && \
-    sed -i '/^Module: codecs\/mod_silk$/,/^$/d' debian/control-modules
+    sed -i '/^Module: codecs\/mod_silk$/,/^$/d' debian/control-modules && \
+    sed -i '/^Module: languages\/mod_v8$/,/^$/d' debian/control-modules
 
 RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
 RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
