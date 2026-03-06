@@ -83,6 +83,12 @@ RUN sed -i '/^Module: applications\/mod_signalwire$/,/^$/d' debian/control-modul
 RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
 RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
 
+# Also strip excluded modules from modules_.conf (controls what configure builds)
+RUN sed -i '/languages\/mod_v8/d' debian/modules_.conf && \
+    sed -i '/applications\/mod_signalwire/d' debian/modules_.conf && \
+    sed -i '/codecs\/mod_bv/d' debian/modules_.conf && \
+    sed -i '/codecs\/mod_silk/d' debian/modules_.conf
+
 # Strip libtpl-dev from Build-Depends (optional at configure time, not in Debian)
 # and strip libldns-fs-dev alternative (libldns-dev in Debian will satisfy it)
 RUN sed -i 's/ libtpl-dev (>= 1.5),//' debian/control && \
