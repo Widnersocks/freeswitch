@@ -38,6 +38,7 @@ RUN apt-get -q update && \
         libtool \
         lsb-release \
         pkg-config \
+        python-is-python3 \
         wget
 
 RUN update-ca-certificates --fresh
