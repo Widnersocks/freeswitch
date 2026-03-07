@@ -38,13 +38,22 @@ RUN apt-get -q update && \
         libtool \
         lsb-release \
         pkg-config \
-        checkinstall \
         python-is-python3 \
         wget
 
-RUN mkdir -p /tmp/lib-debs
-
 RUN update-ca-certificates --fresh
+
+# Helper: build a .deb from a DESTDIR install
+# Usage: build-lib-deb <pkgname> <version> <srcdir>
+RUN printf '#!/bin/bash\nset -e\nPKG=$1 VER=$2 SRC=$3\n\
+DEST=/tmp/deb-stage/${PKG}_${VER}_amd64\n\
+mkdir -p "$DEST/DEBIAN"\n\
+make -C "$SRC" DESTDIR="$DEST" install\n\
+printf "Package: %s\\nVersion: %s\\nArchitecture: amd64\\nMaintainer: Fork\\nDescription: %s runtime library\\n" "$PKG" "$VER" "$PKG" > "$DEST/DEBIAN/control"\n\
+dpkg-deb --build "$DEST" /tmp/lib-debs/\n\
+rm -rf "$DEST"\n' > /usr/local/bin/build-lib-deb && chmod +x /usr/local/bin/build-lib-deb
+
+RUN mkdir -p /tmp/lib-debs /tmp/deb-stage
 
 # ── Build sofia-sip from source ──────────────────────────────────────────────
 RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-sip.git /tmp/sofia-sip \
@@ -54,8 +63,7 @@ RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-si
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --install=no --pkgname=libsofia-sip-fork --pkgversion=1.13.17 \
-       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
+    && build-lib-deb libsofia-sip-fork 1.13.17 /tmp/sofia-sip \
     && rm -rf /tmp/sofia-sip
 
 # ── Build spandsp from source ────────────────────────────────────────────────
@@ -66,8 +74,7 @@ RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --install=no --pkgname=libspandsp-fork --pkgversion=3.0.0 \
-       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
+    && build-lib-deb libspandsp-fork 3.0.0 /tmp/spandsp \
     && rm -rf /tmp/spandsp
 
 # ── Build libilbc from source ────────────────────────────────────────────────
@@ -78,8 +85,7 @@ RUN git clone --depth 1 https://github.com/freeswitch/libilbc.git /tmp/libilbc \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --install=no --pkgname=libilbc-fork --pkgversion=3.0.0 \
-       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
+    && build-lib-deb libilbc-fork 3.0.0 /tmp/libilbc \
     && rm -rf /tmp/libilbc
 
 RUN echo "export CODENAME=${CODENAME}" | tee ~/.env && \
