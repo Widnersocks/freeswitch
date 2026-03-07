@@ -64,10 +64,10 @@ RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
     && rm -rf /tmp/spandsp
 
 # ── Build libilbc from source ────────────────────────────────────────────────
-RUN git clone --depth 1 https://github.com/TimothyGu/libilbc.git /tmp/libilbc \
+RUN git clone --depth 1 https://github.com/freeswitch/libilbc.git /tmp/libilbc \
     && cd /tmp/libilbc \
-    && git submodule update --init \
-    && cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON . \
+    && ./bootstrap.sh \
+    && ./configure --prefix=/usr \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
