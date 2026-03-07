@@ -92,6 +92,12 @@ RUN sed -i '/^Module: applications\/mod_signalwire$/,/^$/d' debian/control-modul
     sed -i '/^Module: languages\/mod_v8$/,/^$/d' debian/control-modules && \
     sed -i '/^Module: endpoints\/mod_verto$/,/^$/d' debian/control-modules
 
+# Fix mod_spandsp for latest spandsp API (v18_init signature + renamed constants)
+RUN sed -i 's/V18_MODE_5BIT_4545/V18_MODE_WEITBRECHT_5BIT_4545/g' src/mod/applications/mod_spandsp/mod_spandsp_dsp.c && \
+    sed -i 's/V18_MODE_5BIT_50/V18_MODE_WEITBRECHT_5BIT_50/g' src/mod/applications/mod_spandsp/mod_spandsp_dsp.c && \
+    sed -i 's/v18_init(NULL, TRUE, get_v18_mode(session), V18_AUTOMODING_GLOBAL, put_text_msg, NULL)/v18_init(NULL, TRUE, get_v18_mode(session), V18_AUTOMODING_GLOBAL, put_text_msg, NULL, NULL, NULL)/g' src/mod/applications/mod_spandsp/mod_spandsp_dsp.c && \
+    sed -i 's/v18_init(NULL, FALSE, get_v18_mode(session), V18_AUTOMODING_GLOBAL, put_text_msg, pvt)/v18_init(NULL, FALSE, get_v18_mode(session), V18_AUTOMODING_GLOBAL, put_text_msg, pvt, NULL, NULL)/g' src/mod/applications/mod_spandsp/mod_spandsp_dsp.c
+
 RUN . ~/.env && ./debian/util.sh prep-create-orig -n -V${VERSION}-${BUILD_NUMBER}-${GIT_SHA} -x
 RUN . ~/.env && ./debian/util.sh prep-create-dsc ${CODENAME}
 
