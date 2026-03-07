@@ -108,6 +108,13 @@ RUN sed -i '/languages\/mod_v8/d' debian/modules_.conf && \
     sed -i '/codecs\/mod_silk/d' debian/modules_.conf && \
     sed -i '/endpoints\/mod_verto/d' debian/modules_.conf
 
+# Remove .install files for excluded modules so dh_install doesn't look for their .so files
+RUN rm -f debian/freeswitch-mod-signalwire.install debian/freeswitch-mod-signalwire-dbg.* \
+         debian/freeswitch-mod-bv.install debian/freeswitch-mod-bv-dbg.* \
+         debian/freeswitch-mod-silk.install debian/freeswitch-mod-silk-dbg.* \
+         debian/freeswitch-mod-v8.install debian/freeswitch-mod-v8-dbg.* \
+         debian/freeswitch-mod-verto.install debian/freeswitch-mod-verto-dbg.*
+
 # Strip libtpl-dev from Build-Depends (optional at configure time, not in Debian)
 # and strip libldns-fs-dev alternative (libldns-dev in Debian will satisfy it)
 RUN sed -i 's/ libtpl-dev (>= 1.5),//' debian/control && \
