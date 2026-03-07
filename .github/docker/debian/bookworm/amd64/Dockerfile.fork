@@ -150,6 +150,9 @@ RUN apt-get --quiet update && \
         done && \
     apt-get --yes --fix-broken install
 
+# Allow dpkg-shlibdeps to proceed even when libs were installed from source (no .deb metadata)
+RUN printf '\noverride_dh_shlibdeps:\n\tdh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info\n' >> debian/rules
+
 ENV DEB_BUILD_OPTIONS="parallel=$(nproc)"
 RUN . ~/.env && dch -b -M -v "${VERSION}-${BUILD_NUMBER}-${GIT_SHA}~${CODENAME}" \
   --force-distribution -D "${CODENAME}" "Fork build, ${GIT_SHA}"
