@@ -54,7 +54,7 @@ RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-si
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --pkgname=libsofia-sip-fork --pkgversion=1.13.17 \
+    && checkinstall --default --install=no --pkgname=libsofia-sip-fork --pkgversion=1.13.17 \
        --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/sofia-sip
 
@@ -66,7 +66,7 @@ RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --pkgname=libspandsp-fork --pkgversion=3.0.0 \
+    && checkinstall --default --install=no --pkgname=libspandsp-fork --pkgversion=3.0.0 \
        --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/spandsp
 
@@ -78,7 +78,7 @@ RUN git clone --depth 1 https://github.com/freeswitch/libilbc.git /tmp/libilbc \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
-    && checkinstall --default --pkgname=libilbc-fork --pkgversion=3.0.0 \
+    && checkinstall --default --install=no --pkgname=libilbc-fork --pkgversion=3.0.0 \
        --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/libilbc
 
