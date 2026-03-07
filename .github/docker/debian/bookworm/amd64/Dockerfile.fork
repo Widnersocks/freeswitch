@@ -45,15 +45,26 @@ RUN update-ca-certificates --fresh
 
 # Helper: build a .deb from a DESTDIR install
 # Usage: build-lib-deb <pkgname> <version> <srcdir>
-RUN printf '#!/bin/bash\nset -e\nPKG=$1 VER=$2 SRC=$3\n\
-DEST=/tmp/deb-stage/${PKG}_${VER}_amd64\n\
-mkdir -p "$DEST/DEBIAN"\n\
-make -C "$SRC" DESTDIR="$DEST" install\n\
-printf "Package: %s\\nVersion: %s\\nArchitecture: amd64\\nMaintainer: Fork\\nDescription: %s runtime library\\n" "$PKG" "$VER" "$PKG" > "$DEST/DEBIAN/control"\n\
-dpkg-deb --build "$DEST" /tmp/lib-debs/\n\
-rm -rf "$DEST"\n' > /usr/local/bin/build-lib-deb && chmod +x /usr/local/bin/build-lib-deb
-
-RUN mkdir -p /tmp/lib-debs /tmp/deb-stage
+COPY <<'SCRIPT' /usr/local/bin/build-lib-deb
+#!/bin/bash
+set -e
+PKG="$1"
+VER="$2"
+SRC="$3"
+DEST="/tmp/deb-stage/${PKG}_${VER}_amd64"
+mkdir -p "$DEST/DEBIAN"
+make -C "$SRC" DESTDIR="$DEST" install
+cat > "$DEST/DEBIAN/control" <<EOF
+Package: ${PKG}
+Version: ${VER}
+Architecture: amd64
+Maintainer: Fork
+Description: ${PKG} runtime library
+EOF
+dpkg-deb --build "$DEST" /tmp/lib-debs/
+rm -rf "$DEST"
+SCRIPT
+RUN chmod +x /usr/local/bin/build-lib-deb && mkdir -p /tmp/lib-debs /tmp/deb-stage
 
 # ── Build sofia-sip from source ──────────────────────────────────────────────
 RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-sip.git /tmp/sofia-sip \
