@@ -38,8 +38,11 @@ RUN apt-get -q update && \
         libtool \
         lsb-release \
         pkg-config \
+        checkinstall \
         python-is-python3 \
         wget
+
+RUN mkdir -p /tmp/lib-debs
 
 RUN update-ca-certificates --fresh
 
@@ -51,6 +54,8 @@ RUN git clone --depth 1 --branch v1.13.17 https://github.com/freeswitch/sofia-si
     && make -j$(nproc) \
     && make install \
     && ldconfig \
+    && checkinstall --default --pkgname=libsofia-sip-fork --pkgversion=1.13.17 \
+       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/sofia-sip
 
 # ── Build spandsp from source ────────────────────────────────────────────────
@@ -61,6 +66,8 @@ RUN git clone --depth 1 https://github.com/freeswitch/spandsp.git /tmp/spandsp \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
+    && checkinstall --default --pkgname=libspandsp-fork --pkgversion=3.0.0 \
+       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/spandsp
 
 # ── Build libilbc from source ────────────────────────────────────────────────
@@ -71,6 +78,8 @@ RUN git clone --depth 1 https://github.com/freeswitch/libilbc.git /tmp/libilbc \
     && make -j$(nproc) \
     && make install \
     && ldconfig \
+    && checkinstall --default --pkgname=libilbc-fork --pkgversion=3.0.0 \
+       --requires= --nodoc --pakdir=/tmp/lib-debs make install \
     && rm -rf /tmp/libilbc
 
 RUN echo "export CODENAME=${CODENAME}" | tee ~/.env && \
@@ -167,7 +176,8 @@ RUN dpkg-source \
     . \
     && debuild -b -d -us -uc \
     && mkdir OUT \
-    && mv -v ../*.{deb,dsc,changes,tar.*} OUT/.
+    && mv -v ../*.{deb,dsc,changes,tar.*} OUT/. \
+    && cp -v /tmp/lib-debs/*.deb OUT/.
 
 RUN ls -lah /data/OUT
 
